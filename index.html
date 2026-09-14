@@ -29,7 +29,6 @@
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
         }
 
         #speedometer {
@@ -44,6 +43,7 @@
             font-family: monospace;
             font-size: 18px;
             min-width: 250px;
+            pointer-events: none;
         }
 
         #carInfo {
@@ -57,18 +57,7 @@
             border-radius: 10px;
             font-family: monospace;
             font-size: 16px;
-        }
-
-        #minimap {
-            position: absolute;
-            bottom: 40px;
-            right: 40px;
-            width: 150px;
-            height: 150px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 2px solid #ff007f;
-            border-radius: 10px;
-            overflow: hidden;
+            pointer-events: none;
         }
 
         #controls {
@@ -83,6 +72,7 @@
             border-radius: 10px;
             font-size: 14px;
             max-width: 200px;
+            pointer-events: none;
         }
 
         #menu {
@@ -90,19 +80,35 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(10, 15, 26, 0.95);
-            border: 2px solid #00f0ff;
+            background: rgba(10, 15, 26, 0.98);
+            border: 3px solid #00f0ff;
             border-radius: 15px;
-            padding: 40px;
+            padding: 60px 40px;
             text-align: center;
             color: #00f0ff;
             z-index: 1000;
+            pointer-events: auto;
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.6);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         #menu h1 {
             font-size: 3em;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             text-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+        }
+
+        #menu p {
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+
+        #carSelection {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            justify-items: center;
         }
 
         .car-button {
@@ -110,17 +116,24 @@
             background: rgba(0, 240, 255, 0.2);
             border: 2px solid #00f0ff;
             color: #00f0ff;
-            padding: 12px 20px;
-            margin: 10px;
+            padding: 15px 25px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: bold;
             transition: all 0.3s;
+            pointer-events: auto;
+            white-space: nowrap;
         }
 
         .car-button:hover {
             background: rgba(0, 240, 255, 0.5);
             box-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+            transform: scale(1.05);
+        }
+
+        .car-button:active {
+            transform: scale(0.95);
         }
 
         .hidden {
@@ -128,6 +141,25 @@
         }
 
         @media (max-width: 768px) {
+            #menu {
+                padding: 40px 25px;
+                max-width: 90vw;
+            }
+
+            #menu h1 {
+                font-size: 2em;
+            }
+
+            #carSelection {
+                grid-template-columns: 1fr;
+            }
+
+            .car-button {
+                width: 100%;
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+
             #speedometer {
                 bottom: 20px;
                 left: 20px;
@@ -147,13 +179,6 @@
                 font-size: 12px;
                 padding: 15px;
             }
-
-            #minimap {
-                bottom: 20px;
-                right: 20px;
-                width: 120px;
-                height: 120px;
-            }
         }
     </style>
 </head>
@@ -162,7 +187,7 @@
     <div id="ui">
         <div id="menu">
             <h1>🏁 HyperDrive Racing</h1>
-            <p style="margin-bottom: 20px;">Select Your Car</p>
+            <p>Select Your Car</p>
             <div id="carSelection"></div>
         </div>
         <div id="carInfo" class="hidden">
@@ -175,15 +200,12 @@
         </div>
         <div id="controls" class="hidden">
             <strong>Controls:</strong><br>
-            🖱️ Mouse: Look Around<br>
             W: Forward<br>
             S: Brake<br>
-            A: Left<br>
-            D: Right<br>
+            A/D: Turn<br>
             Space: Handbrake<br>
-            R: Reset Position
+            R: Reset
         </div>
-        <canvas id="minimap" class="hidden" style="position: absolute; bottom: 40px; right: 40px; width: 150px; height: 150px; background: rgba(0,0,0,0.8); border: 2px solid #ff007f;"></canvas>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -216,7 +238,6 @@
         const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFShadowShadowMap;
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -247,17 +268,15 @@
         world.gravity.set(0, -9.82, 0);
         world.defaultContactMaterial.friction = 0.4;
 
-        // Create car
+        // Car variables
         let car = null;
         let carBody = null;
         let wheelBodies = [];
         let wheelMeshes = [];
-        let velocity = new THREE.Vector3();
         let currentSpeed = 0;
         let rpm = 0;
 
         function createCar(carData) {
-            // Remove old car
             if (car) scene.remove(car);
             if (carBody) world.removeBody(carBody);
             wheelBodies.forEach(b => world.removeBody(b));
@@ -303,42 +322,32 @@
                 wheelMeshes.push(wheel);
             });
 
-            carGroup.position.set(0, 0, -50);
+            carGroup.position.set(0, 0.5, -50);
             scene.add(carGroup);
             car = carGroup;
 
-            // Physics body
+            // Physics
             const carShape = new CANNON.Box(new CANNON.Vec3(1, 0.75, 2.5));
             carBody = new CANNON.Body({ mass: 1500 });
             carBody.addShape(carShape);
             carBody.position.copy(carGroup.position);
             world.addBody(carBody);
 
-            // Add wheels (simplified)
-            wheelPositions.forEach(pos => {
-                const wheelShape = new CANNON.Sphere(wheelRadius);
-                const wheelB = new CANNON.Body({ mass: 50 });
-                wheelB.addShape(wheelShape);
-                wheelB.position.set(carGroup.position.x + pos[0], carGroup.position.y + pos[1], carGroup.position.z + pos[2]);
-                world.addBody(wheelB);
-                wheelBodies.push(wheelB);
-            });
-
             camera.position.set(0, 3, -15);
             camera.lookAt(car.position);
         }
 
-        // Input handling
+        // Input
         const keys = {};
         window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
         window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
-        // Car selection menu
+        // Car selection
         const carSelectionDiv = document.getElementById('carSelection');
-        cars.forEach((carData, i) => {
+        cars.forEach((carData) => {
             const btn = document.createElement('button');
             btn.className = 'car-button';
-            btn.textContent = `${carData.name} (${carData.hp}hp)`;
+            btn.textContent = `${carData.name}\n${carData.hp}hp`;
             btn.onclick = () => {
                 selectedCar = carData;
                 document.getElementById('menu').classList.add('hidden');
@@ -366,7 +375,6 @@
 
             while (accumulator >= frameTime) {
                 if (gameStarted && car && carBody) {
-                    // Car movement
                     const speed = 0.5;
                     const acceleration = new THREE.Vector3();
 
@@ -377,38 +385,26 @@
 
                     carBody.velocity.x += acceleration.x;
                     carBody.velocity.z += acceleration.z;
-
-                    // Friction
                     carBody.velocity.x *= 0.95;
                     carBody.velocity.z *= 0.95;
 
-                    // Rotation
                     if (keys['a']) carBody.angularVelocity.y = 0.05;
                     if (keys['d']) carBody.angularVelocity.y = -0.05;
                     carBody.angularVelocity.y *= 0.9;
 
-                    // Reset position
                     if (keys['r']) {
                         carBody.position.set(0, 0.5, -50);
                         carBody.velocity.set(0, 0, 0);
                         carBody.angularVelocity.set(0, 0, 0);
                     }
 
-                    // Update car visual
                     car.position.copy(carBody.position);
                     car.quaternion.copy(carBody.quaternion);
 
-                    // Update wheels
-                    wheelBodies.forEach((wb, i) => {
-                        wb.position.copy(carBody.position);
-                        wb.position.x += (i % 2 === 0 ? -1 : 1);
-                        wb.position.z += (i < 2 ? 1.2 : -1.2);
-                        wheelMeshes[i].position.copy(wb.position);
-                        wheelMeshes[i].quaternion.copy(wb.quaternion);
-                        wheelMeshes[i].rotation.z += carBody.angularVelocity.y * 0.1;
+                    wheelMeshes.forEach((mesh, i) => {
+                        mesh.rotation.z += carBody.angularVelocity.y * 0.1;
                     });
 
-                    // Camera follow
                     const targetCameraPos = new THREE.Vector3(
                         car.position.x + Math.sin(car.rotation.y) * 10,
                         car.position.y + 3,
@@ -417,15 +413,12 @@
                     camera.position.lerp(targetCameraPos, 0.1);
                     camera.lookAt(car.position.clone().add(new THREE.Vector3(0, 1, 0)));
 
-                    // Speed calculation
                     currentSpeed = Math.sqrt(carBody.velocity.x ** 2 + carBody.velocity.z ** 2) * 15;
                     rpm = (currentSpeed / selectedCar.speed) * 8000;
 
-                    // Update UI
                     document.getElementById('speed').textContent = Math.floor(currentSpeed);
                     document.getElementById('rpm').textContent = Math.floor(rpm);
 
-                    // Physics update
                     world.step(frameTime);
                 }
 
@@ -437,7 +430,6 @@
 
         animate();
 
-        // Handle window resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
