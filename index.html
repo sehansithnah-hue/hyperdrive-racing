@@ -6,271 +6,160 @@
     <title>HyperDrive Racing</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #000; overflow: hidden; }
-        canvas { display: block; width: 100vw; height: 100vh; }
+        body { font-family: Arial; background: #000; color: #0f0; overflow: hidden; }
+        canvas { display: block; width: 100%; height: 100%; }
         
         #menu {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 20, 40, 0.95);
-            border: 3px solid #0ff;
-            border-radius: 15px;
-            padding: 40px;
-            text-align: center;
-            z-index: 2000;
-            width: 90%;
-            max-width: 600px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #001;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
 
         #menu h1 {
             color: #0ff;
-            font-size: 2.5em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px #0ff;
+            font-size: 3em;
+            margin-bottom: 30px;
         }
 
         #menu p {
             color: #0f0;
-            font-size: 1.2em;
-            margin-bottom: 25px;
-        }
-
-        #carList {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 20px;
+            font-size: 1.5em;
+            margin-bottom: 30px;
         }
 
         .carBtn {
-            background: rgba(0, 255, 255, 0.15);
+            background: #003;
             border: 2px solid #0ff;
             color: #0ff;
-            padding: 12px;
+            padding: 15px 25px;
+            margin: 10px;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1em;
+            font-size: 1.1em;
             font-weight: bold;
-            transition: all 0.2s;
         }
 
-        .carBtn:hover {
-            background: rgba(0, 255, 255, 0.4);
-            box-shadow: 0 0 15px #0ff;
+        .carBtn:active {
+            background: #00f;
         }
 
-        .hidden { display: none !important; }
-
-        #hud {
+        #gameScreen {
+            display: none;
             position: fixed;
-            bottom: 20px;
-            left: 20px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #004;
+        }
+
+        #gameInfo {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
             color: #0f0;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
+            padding: 10px;
             border: 2px solid #0f0;
-            border-radius: 8px;
             font-family: monospace;
-            font-size: 16px;
             z-index: 100;
         }
 
-        #info {
+        #carDisplay {
             position: fixed;
-            top: 20px;
-            left: 20px;
-            color: #0ff;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border: 2px solid #0ff;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 14px;
-            z-index: 100;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10em;
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-
     <div id="menu">
-        <h1>🏁 HyperDrive Racing</h1>
-        <p>Select Your Car</p>
+        <h1>🏁 HyperDrive</h1>
+        <p>Pick a Car</p>
         <div id="carList"></div>
     </div>
 
-    <div id="info" class="hidden">
-        <div>Car: <span id="carName">-</span></div>
-        <div>HP: <span id="carHP">-</span></div>
+    <div id="gameScreen">
+        <div id="carDisplay">🏎️</div>
+        <div id="gameInfo">
+            <div>Speed: <span id="speed">0</span> mph</div>
+            <div>Press: W=Up, A=Left, D=Right</div>
+        </div>
     </div>
-
-    <div id="hud" class="hidden">
-        <div>Speed: <span id="speed">0</span> mph</div>
-        <div>RPM: <span id="rpm">0</span></div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"></script>
 
     <script>
         const cars = [
-            { name: "Ferrari 488", color: 0xff0000, hp: 720 },
-            { name: "Lamborghini Huracán", color: 0xffff00, hp: 640 },
-            { name: "Porsche 911 Turbo", color: 0x333333, hp: 650 },
-            { name: "McLaren P1", color: 0x00ff00, hp: 903 },
-            { name: "Bugatti Chiron", color: 0x0000ff, hp: 1479 },
-            { name: "Tesla Model S Plaid", color: 0xff00ff, hp: 1020 },
-            { name: "Nissan GT-R", color: 0xff6600, hp: 565 },
-            { name: "BMW M5", color: 0x1a1a1a, hp: 625 },
-            { name: "Audi R8", color: 0xaaaaaa, hp: 620 },
-            { name: "Corvette C8", color: 0xcc0000, hp: 495 }
+            { name: "Ferrari 488", emoji: "🔴", id: 1 },
+            { name: "Lamborghini", emoji: "🟡", id: 2 },
+            { name: "Porsche 911", emoji: "⬛", id: 3 },
+            { name: "McLaren P1", emoji: "🟢", id: 4 },
+            { name: "Bugatti Chiron", emoji: "🔵", id: 5 },
+            { name: "Tesla Plaid", emoji: "🟣", id: 6 },
+            { name: "Nissan GT-R", emoji: "🟠", id: 7 },
+            { name: "BMW M5", emoji: "⬜", id: 8 },
+            { name: "Audi R8", emoji: "⚪", id: 9 },
+            { name: "Corvette C8", emoji: "🔶", id: 10 }
         ];
 
         const carList = document.getElementById('carList');
-        cars.forEach((car) => {
+        cars.forEach(car => {
             const btn = document.createElement('button');
             btn.className = 'carBtn';
-            btn.textContent = car.name + ' - ' + car.hp + 'hp';
+            btn.innerHTML = `${car.emoji} ${car.name}`;
             btn.onclick = () => startGame(car);
             carList.appendChild(btn);
         });
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(100, 200, 50);
-        directionalLight.castShadow = true;
-        scene.add(directionalLight);
-
-        const groundGeometry = new THREE.PlaneGeometry(1000, 1000);
-        const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.receiveShadow = true;
-        scene.add(ground);
-
-        const world = new CANNON.World();
-        world.gravity.set(0, -9.82, 0);
-
-        let gameActive = false;
-        let carMesh = null;
-        let carBody = null;
-        let carData = null;
+        let speed = 0;
+        let carPos = { x: 0, y: 0 };
+        let selectedCar = null;
         const keys = {};
 
         window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
         window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
         function startGame(car) {
-            carData = car;
-            gameActive = true;
-            document.getElementById('menu').classList.add('hidden');
-            document.getElementById('info').classList.remove('hidden');
-            document.getElementById('hud').classList.remove('hidden');
-            document.getElementById('carName').textContent = car.name;
-            document.getElementById('carHP').textContent = car.hp;
-            createCar(car);
+            selectedCar = car;
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            updateDisplay();
+            gameLoop();
         }
 
-        function createCar(car) {
-            if (carMesh) scene.remove(carMesh);
-            if (carBody) world.removeBody(carBody);
-
-            const carGroup = new THREE.Group();
-
-            const bodyGeom = new THREE.BoxGeometry(2, 1.5, 5);
-            const bodyMat = new THREE.MeshPhongMaterial({ color: car.color });
-            const body = new THREE.Mesh(bodyGeom, bodyMat);
-            body.position.y = 1;
-            body.castShadow = true;
-            carGroup.add(body);
-
-            const windowGeom = new THREE.BoxGeometry(1.8, 0.8, 1.5);
-            const windowMat = new THREE.MeshPhongMaterial({ color: 0x333333, transparent: true, opacity: 0.5 });
-            const window1 = new THREE.Mesh(windowGeom, windowMat);
-            window1.position.set(0, 1.8, 0.5);
-            carGroup.add(window1);
-
-            const wheelGeom = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
-            const wheelMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
-            
-            const wheelPositions = [[-1, 0.5, 1.2], [1, 0.5, 1.2], [-1, 0.5, -1.2], [1, 0.5, -1.2]];
-            wheelPositions.forEach(pos => {
-                const wheel = new THREE.Mesh(wheelGeom, wheelMat);
-                wheel.rotation.z = Math.PI / 2;
-                wheel.position.set(pos[0], pos[1], pos[2]);
-                carGroup.add(wheel);
-            });
-
-            carGroup.position.set(0, 0.5, -50);
-            scene.add(carGroup);
-            carMesh = carGroup;
-
-            const shape = new CANNON.Box(new CANNON.Vec3(1, 0.75, 2.5));
-            carBody = new CANNON.Body({ mass: 1500 });
-            carBody.addShape(shape);
-            carBody.position.copy(carGroup.position);
-            world.addBody(carBody);
-
-            camera.position.set(0, 3, -15);
+        function updateDisplay() {
+            document.getElementById('carDisplay').innerHTML = selectedCar.emoji;
+            document.getElementById('speed').textContent = Math.floor(speed);
         }
 
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.05);
+        function gameLoop() {
+            if (keys['w']) speed += 5;
+            if (keys['s']) speed -= 5;
+            if (keys['a']) carPos.x -= 10;
+            if (keys['d']) carPos.x += 10;
 
-            if (gameActive && carMesh && carBody) {
-                if (keys['w']) carBody.velocity.z -= 0.5;
-                if (keys['s']) carBody.velocity.z += 0.25;
-                if (keys['a']) carBody.velocity.x -= 0.4;
-                if (keys['d']) carBody.velocity.x += 0.4;
+            speed *= 0.95;
+            speed = Math.max(0, Math.min(200, speed));
 
-                carBody.velocity.x *= 0.95;
-                carBody.velocity.z *= 0.95;
+            const carDisplay = document.getElementById('carDisplay');
+            carDisplay.style.left = carPos.x + 'px';
+            updateDisplay();
 
-                if (keys['a']) carBody.angularVelocity.y = 0.05;
-                if (keys['d']) carBody.angularVelocity.y = -0.05;
-                carBody.angularVelocity.y *= 0.9;
-
-                if (keys['r']) {
-                    carBody.position.set(0, 0.5, -50);
-                    carBody.velocity.set(0, 0, 0);
-                }
-
-                carMesh.position.copy(carBody.position);
-                carMesh.quaternion.copy(carBody.quaternion);
-
-                camera.position.lerp(new THREE.Vector3(carMesh.position.x + 5, carMesh.position.y + 3, carMesh.position.z - 15), 0.1);
-                camera.lookAt(carMesh.position.clone().add(new THREE.Vector3(0, 1, 0)));
-
-                const speed = Math.sqrt(carBody.velocity.x ** 2 + carBody.velocity.z ** 2) * 15;
-                const rpm = (speed / 200) * 8000;
-                document.getElementById('speed').textContent = Math.floor(speed);
-                document.getElementById('rpm').textContent = Math.floor(rpm);
-
-                world.step(dt);
+            if (document.getElementById('gameScreen').style.display === 'block') {
+                setTimeout(gameLoop, 50);
             }
-
-            renderer.render(scene, camera);
         }
-
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
     </script>
 </body>
 </html>
